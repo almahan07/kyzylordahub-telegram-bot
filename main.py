@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 
 # Windows жүйесінде қазақша әріптер мен UTF-8 таңбалары қатесіз шығуы үшін
@@ -10,8 +11,8 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+from aiohttp import web
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
@@ -27,7 +28,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
     ],
 )
-logger = logging.getLogger("antigraffiti_bot")
+logger = logging.getLogger("kyzylordahub_bot")
 
 
 async def setup_bot_commands(bot: Bot) -> None:
@@ -37,6 +38,36 @@ async def setup_bot_commands(bot: Bot) -> None:
         BotCommand(command="id", description="Өз Telegram ID-іңізді білу"),
     ]
     await bot.set_my_commands(commands)
+
+
+# =========================================================================
+# Render.com Free Web Service үшін Health-Check веб-сервері
+# UptimeRobot осы сілтемені пингтеп, боттың 24/7 ұйықтамауын қамтамасыз етеді
+# =========================================================================
+
+async def handle_health_check(request: web.Request) -> web.Response:
+    """Веб-сервердің басты парақшасы."""
+    return web.json_response({
+        "status": "healthy",
+        "service": "Kyzylorda Hub Telegram Bot",
+        "bot": "@KYZYLORDAHUB_BOT",
+        "message": "Бот белсенді жұмыс істеп тұр! 🚀"
+    })
+
+
+async def start_web_server() -> web.AppRunner:
+    """Жеңіл веб-серверді белгіленген портта іске қосу."""
+    app = web.Application()
+    app.router.add_get("/", handle_health_check)
+    app.router.add_get("/health", handle_health_check)
+
+    port = int(os.getenv("PORT", "8080"))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"Health-check веб-сервері 0.0.0.0:{port} портында қосылды.")
+    return runner
 
 
 async def main() -> None:
@@ -50,6 +81,9 @@ async def main() -> None:
     logger.info("Деректер базасы тексерілуде...")
     await db.init_db()
 
+    # Health-check веб-серверін іске қосу (Render үшін)
+    web_runner = await start_web_server()
+
     # Бот пен Диспетчерді инициализациялау
     bot = Bot(token=BOT_TOKEN)
     storage = MemoryStorage()
@@ -61,24 +95,20 @@ async def main() -> None:
     # Меню командаларын қосу
     await setup_bot_commands(bot)
 
-    # Админдер бар ма, соны логқа шығару
     if ADMIN_IDS:
         logger.info(f"Тіркелген админ ID-лері: {ADMIN_IDS}")
-    else:
-        logger.warning(
-            "ЕСКЕРТУ: .env файлында ADMIN_IDS көрсетілмеген! Админ командалары жұмыс істемеуі мүмкін."
-        )
 
     # Бот туралы мәлімет алу
     bot_info = await bot.get_me()
     logger.info(f"Бот сәтті қосылды: @{bot_info.username} (ID: {bot_info.id})")
 
-    # Ескі жаңартуларды тазалап (drop_pending_updates), поллингті бастау
+    # Ескі жаңартуларды тазалап, поллингті бастау
     await bot.delete_webhook(drop_pending_updates=True)
     try:
         await dp.start_polling(bot)
     finally:
         await bot.session.close()
+        await web_runner.cleanup()
         logger.info("Бот жұмысын аяқтады.")
 
 
