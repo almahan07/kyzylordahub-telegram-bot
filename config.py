@@ -30,6 +30,12 @@ COURSE_PLATFORM_URL = os.getenv("COURSE_PLATFORM_URL", "https://edu.astanahub.co
 DB_NAME = os.getenv("DB_NAME", "antigraffiti.db")
 DB_PATH = BASE_DIR / DB_NAME
 
+# Render сыртқы сілтемесі (24/7 ұйықтамауы үшін)
+RENDER_EXTERNAL_URL = os.getenv(
+    "RENDER_EXTERNAL_URL",
+    "https://kyzylordahub-telegram-bot-1.onrender.com"
+)
+
 # =========================================================================
 # Kyzylorda Hub курстары мен промокодтары (Google Sheets дерегі бойынша)
 # =========================================================================

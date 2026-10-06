@@ -46,3 +46,24 @@
 # Ботты қосу:
 python main.py
 ```
+
+---
+
+## ⚡ Render.com-да 24/7 Үздіксіз жұмыс істету (Ноутбуксіз)
+
+Render Free Web Service 15 минут сұраныс болмаса автоматты түрде ұйықтап қалады («sleep mode»). Бот 24/7 ноутбук өшіп тұрса да жұмыс істеуі үшін келесі шешімдер орнатылды:
+
+### 1. GitHub Actions (Бұлтты автобот — 100% тегін)
+- Жобада `.github/workflows/render_keep_alive.yml` орнатылған.
+- `push_to_github.bat` файлын басқан бойда, GitHub Actions бұлты әр 5-10 минут сайын `https://kyzylordahub-telegram-bot-1.onrender.com/health` адресіне сұраныс жіберіп, ботты ояу ұстайды.
+
+### 2. Боттың ішкі авто-пингері (main.py)
+- Бот қосылғаннан кейін өзінің адресіне әр 5 минут сайын GET сұраныс жіберіп, Render таймерін нөлдеп отырады.
+
+### 3. UptimeRobot немесе cron-job.org (Ең сенімді тәсіл):
+1. **[cron-job.org](https://cron-job.org)** немесе **[uptimerobot.com](https://uptimerobot.com)** сайтына кіріп, тегін тіркеліңіз.
+2. «Create Monitor» / «Create Cronjob» басыңыз:
+   - **URL:** `https://kyzylordahub-telegram-bot-1.onrender.com/health`
+   - **Интервал:** 5 минут (Every 5 minutes).
+3. Сақтаңыз! Енді Render ботыңыз ноутбук өшіп тұрса да 24/7 тоқтаусыз жұмыс істейді.
+

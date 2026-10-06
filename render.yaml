@@ -15,3 +15,5 @@ services:
         sync: false
       - key: COURSE_PLATFORM_URL
         sync: false
+      - key: RENDER_EXTERNAL_URL
+        value: https://kyzylordahub-telegram-bot-1.onrender.com

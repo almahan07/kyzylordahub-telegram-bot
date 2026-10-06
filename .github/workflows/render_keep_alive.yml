@@ -1,0 +1,44 @@
+name: 🚀 Render 24/7 Keep-Alive Bot
+
+on:
+  schedule:
+    # Әр 5-10 минут сайын бұлттан Render қызметіне пинг жіберіп, ботты ояу ұстайды
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # GitHub веб-интерфейсінен қолмен тексеру батырмасы
+  push:
+    branches: [ main ]
+
+jobs:
+  ping_render:
+    name: Ping Render 24/7 (Keep-Alive)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Service
+        run: |
+          echo "=========================================================="
+          echo "🚀 Kyzylorda Hub Telegram Bot: Render Keep-Alive басталуда"
+          echo "=========================================================="
+          TARGET_URL="https://kyzylordahub-telegram-bot-1.onrender.com/health"
+          echo "Нысана URL: $TARGET_URL"
+          
+          # Render ұйықтап қалса да ояту үшін 3 рет сұраныс жіберу
+          SUCCESS=0
+          for attempt in 1 2 3; do
+            echo "Пинг әрекеті #$attempt..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "$TARGET_URL" || echo "000")
+            echo "HTTP статус коды: $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Бот белсенді және 24/7 ояу жұмыс істеп тұр!"
+              SUCCESS=1
+              break
+            else
+              echo "⏳ Render оянуда, 15 секунд күтеміз..."
+              sleep 15
+            fi
+          done
+
+          if [ $SUCCESS -eq 1 ]; then
+            echo "🎉 Сәтті орындалды!"
+          else
+            echo "⚠️ Render әлі ояну үстінде немесе жауап бермеді."
+          fi

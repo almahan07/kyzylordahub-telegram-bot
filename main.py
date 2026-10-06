@@ -16,7 +16,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
-from config import BOT_TOKEN, ADMIN_IDS
+from config import BOT_TOKEN, ADMIN_IDS, RENDER_EXTERNAL_URL
 import database as db
 from handlers import main_router
 
@@ -70,6 +70,37 @@ async def start_web_server() -> web.AppRunner:
     return runner
 
 
+async def keep_alive_ping_task(url: str, interval: int = 300) -> None:
+    """Render 15 минуттан кейін ұйықтап қалмауы үшін өзінің сыртқы адресіне сұраныс жіберіп отыру (5 минут сайын)."""
+    if not url:
+        return
+    ping_url = url.rstrip("/")
+    if not ping_url.endswith("/health"):
+        ping_url += "/health"
+
+    # Бот пен веб-сервер толық оталып алуы үшін алғашқы 60 секунд күту
+    await asyncio.sleep(60)
+    logger.info(f"🚀 [Keep-Alive] Авто-пингер қосылды: {ping_url} (әр {interval // 60} мин сайын)")
+
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    async with session.get(ping_url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                        if resp.status == 200:
+                            logger.info(f"✅ [Keep-Alive] Render сәтті пингтелді (код 200): {ping_url}")
+                        else:
+                            logger.warning(f"⚠️ [Keep-Alive] Пинг жауабы (код {resp.status}): {ping_url}")
+                except Exception as e:
+                    logger.warning(f"⚠️ [Keep-Alive] Пинг ескертуі: {e}")
+                await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        logger.info("[Keep-Alive] Авто-пингер тоқтатылды.")
+    except Exception as e:
+        logger.error(f"[Keep-Alive] Қате: {e}")
+
+
 async def main() -> None:
     """Ботты баптап, іске қосу негізгі функциясы."""
     if not BOT_TOKEN:
@@ -83,6 +114,11 @@ async def main() -> None:
 
     # Health-check веб-серверін іске қосу (Render үшін)
     web_runner = await start_web_server()
+
+    # Render 24/7 ұйықтамауы үшін авто-пингер тапсырмасын қосу
+    ping_task = None
+    if RENDER_EXTERNAL_URL:
+        ping_task = asyncio.create_task(keep_alive_ping_task(RENDER_EXTERNAL_URL, interval=300))
 
     # Бот пен Диспетчерді инициализациялау
     bot = Bot(token=BOT_TOKEN)
@@ -107,6 +143,8 @@ async def main() -> None:
     try:
         await dp.start_polling(bot)
     finally:
+        if ping_task and not ping_task.done():
+            ping_task.cancel()
         await bot.session.close()
         await web_runner.cleanup()
         logger.info("Бот жұмысын аяқтады.")
