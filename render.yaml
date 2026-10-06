@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: kyzylordahub-telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    autoDeploy: true
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: INSTAGRAM_URL
+        sync: false
+      - key: COURSE_PLATFORM_URL
+        sync: false
