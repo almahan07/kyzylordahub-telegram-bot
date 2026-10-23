@@ -68,6 +68,18 @@ async def init_db() -> None:
             ON promocodes(course, is_used);
             """
         )
+        # Тесттік ескі жазбаларды тазалау (course_1, ANTIGRAFFITI т.б.)
+        try:
+            valid_keys = list(COURSES.keys())
+            if valid_keys:
+                placeholders = ",".join("?" for _ in valid_keys)
+                await db.execute(f"DELETE FROM user_promos WHERE course NOT IN ({placeholders})", valid_keys)
+                await db.execute(f"DELETE FROM promocodes WHERE course NOT IN ({placeholders})", valid_keys)
+                await db.execute("DELETE FROM user_promos WHERE promocode LIKE '%ANTIGRAFFITI%'")
+                await db.execute("DELETE FROM promocodes WHERE code LIKE '%ANTIGRAFFITI%'")
+        except Exception as e:
+            logger.warning(f"Тесттік деректерді тазалау ескертуі: {e}")
+
         await db.commit()
     logger.info("Деректер базасы сәтті инициализацияланды.")
 

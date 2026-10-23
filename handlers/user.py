@@ -37,11 +37,12 @@ async def handle_start(message: Message) -> None:
 
     try:
         claimed_courses = await db.get_user_claimed_courses(user_id)
-        claimed_keys = [c["course"] for c in claimed_courses]
+        valid_claimed_courses = [c for c in claimed_courses if c["course"] in COURSES]
+        claimed_keys = [c["course"] for c in valid_claimed_courses]
 
-        if claimed_courses:
+        if valid_claimed_courses:
             history_lines = []
-            for c in claimed_courses:
+            for c in valid_claimed_courses:
                 c_title = get_course_title(c["course"])
                 history_lines.append(f"• <b>{c_title}</b>: <code>{c['promocode']}</code>")
 
@@ -125,7 +126,7 @@ async def handle_back_to_courses(callback: CallbackQuery) -> None:
     await safe_callback_answer(callback)
     user_id = callback.from_user.id
     claimed_courses = await db.get_user_claimed_courses(user_id)
-    claimed_keys = [c["course"] for c in claimed_courses]
+    claimed_keys = [c["course"] for c in claimed_courses if c["course"] in COURSES]
 
     if callback.message:
         await callback.message.edit_text(
