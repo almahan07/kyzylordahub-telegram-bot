@@ -5,7 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.exceptions import TelegramAPIError
 
-from config import INSTAGRAM_URL, ADMIN_IDS, get_course_title, get_course_url
+from config import COURSES, INSTAGRAM_URL, ADMIN_IDS, get_course_title, get_course_url
 import database as db
 import texts
 from keyboards import get_courses_keyboard, get_subscribe_keyboard, get_promocode_keyboard
