@@ -90,16 +90,16 @@ async def handle_select_course(callback: CallbackQuery) -> None:
     # Дәл осы курсқа бұрын промокод алған ба тексереміз
     existing_claim = await db.get_user_course_promo(user_id, course_key)
     if existing_claim:
+        promo_code = existing_claim["promocode"]
         text = texts.ALREADY_REGISTERED_COURSE.format(
             course_title=course_title,
-            promocode=existing_claim["promocode"],
-            created_at=existing_claim["created_at"],
+            promocode=promo_code,
             course_url=course_url,
         )
         if callback.message:
             await callback.message.edit_text(
                 text,
-                reply_markup=get_promocode_keyboard(course_key),
+                reply_markup=get_promocode_keyboard(course_key, promocode=promo_code),
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
@@ -165,7 +165,7 @@ async def handle_confirm_sub(callback: CallbackQuery) -> None:
             if callback.message:
                 await callback.message.edit_text(
                     text,
-                    reply_markup=get_promocode_keyboard(course_key),
+                    reply_markup=get_promocode_keyboard(course_key, promocode=promo),
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                 )
@@ -173,19 +173,17 @@ async def handle_confirm_sub(callback: CallbackQuery) -> None:
         elif error_type == "already_claimed":
             # Дәл осы курсқа бұрын алып қойған
             existing = await db.get_user_course_promo(user_id, course_key)
-            prev_promo = existing["promocode"] if existing else promo
-            prev_date = existing["created_at"] if existing else "бұрын"
+            prev_promo = existing["promocode"] if existing else (promo or "")
 
             text = texts.ALREADY_REGISTERED_COURSE.format(
                 course_title=course_title,
                 promocode=prev_promo,
-                created_at=prev_date,
                 course_url=course_url,
             )
             if callback.message:
                 await callback.message.edit_text(
                     text,
-                    reply_markup=get_promocode_keyboard(course_key),
+                    reply_markup=get_promocode_keyboard(course_key, promocode=prev_promo),
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                 )

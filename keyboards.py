@@ -1,5 +1,5 @@
 from typing import List, Optional
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton
 from config import COURSES, INSTAGRAM_URL, get_course_url
 
 
@@ -86,26 +86,35 @@ def get_cancel_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def get_promocode_keyboard(course_key: str) -> InlineKeyboardMarkup:
+def get_promocode_keyboard(course_key: str, promocode: Optional[str] = None) -> InlineKeyboardMarkup:
     """
     Промокод алғанда шығатын батырмалар:
-    1) edu.astanahub.com сайтындағы курсқа өту
-    2) Басқа курстарға да промокод алу мүмкіндігі!
+    1) Промокодты телефоннан бір басумен көшіріп алу (Telegram Bot API 7.0 copy_text)
+    2) edu.astanahub.com сайтындағы курсқа өту
+    3) Басқа курстарға да промокод алу мүмкіндігі!
     """
     url = get_course_url(course_key)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🚀 Курсқа өту (edu.astanahub.com)",
-                    url=url,
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📚 Басқа курстарға промокод алу",
-                    callback_data="back_to_courses",
-                )
-            ]
-        ]
-    )
+    buttons = []
+
+    if promocode:
+        buttons.append([
+            InlineKeyboardButton(
+                text="📋 Промокодты көшіріп алу",
+                copy_text=CopyTextButton(text=promocode),
+            )
+        ])
+
+    buttons.append([
+        InlineKeyboardButton(
+            text="🚀 Курсқа өту (edu.astanahub.com)",
+            url=url,
+        )
+    ])
+    buttons.append([
+        InlineKeyboardButton(
+            text="📚 Басқа курстарға промокод алу",
+            callback_data="back_to_courses",
+        )
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
