@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import logging
@@ -6,7 +7,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramRetryAfter
 
 from config import ADMIN_IDS, COURSES, is_admin, get_course_title, get_course_code
 import database as db
@@ -17,6 +18,14 @@ from keyboards import get_admin_keyboard, get_cancel_keyboard
 logger = logging.getLogger(__name__)
 
 router = Router(name="admin_router")
+
+
+async def safe_callback_answer(callback: CallbackQuery, *args, **kwargs) -> None:
+    """Ескірген callback update болса қате шығармай үнсіз өткізіп жіберу."""
+    try:
+        await callback.answer(*args, **kwargs)
+    except TelegramAPIError:
+        pass
 
 
 def format_courses_info() -> str:
@@ -47,7 +56,7 @@ async def handle_cancel_cmd(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "cancel_action")
 async def handle_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
     """Батырма арқылы әрекеттен бас тарту."""
-    await callback.answer()
+    await safe_callback_answer(callback)
     await state.clear()
     if callback.message:
         await callback.message.edit_text(texts.ACTION_CANCELLED)
@@ -107,9 +116,9 @@ async def handle_stats_cmd(message: Message) -> None:
 async def handle_stats_callback(callback: CallbackQuery) -> None:
     """Батырма арқылы статистиканы көру."""
     if not is_admin(callback.from_user.id):
-        await callback.answer(texts.ONLY_ADMINS, show_alert=True)
+        await safe_callback_answer(callback, texts.ONLY_ADMINS, show_alert=True)
         return
-    await callback.answer()
+    await safe_callback_answer(callback)
     if callback.message:
         await send_stats_report(callback.message)
 
@@ -134,9 +143,9 @@ async def handle_upload_cmd(message: Message, state: FSMContext) -> None:
 async def handle_upload_callback(callback: CallbackQuery, state: FSMContext) -> None:
     """Батырма арқылы жүктеуді бастау."""
     if not is_admin(callback.from_user.id):
-        await callback.answer(texts.ONLY_ADMINS, show_alert=True)
+        await safe_callback_answer(callback, texts.ONLY_ADMINS, show_alert=True)
         return
-    await callback.answer()
+    await safe_callback_answer(callback)
     await state.set_state(AdminUploadStates.waiting_for_file)
     text = texts.UPLOAD_INSTRUCTION.format(courses_info=format_courses_info())
     if callback.message:
@@ -282,9 +291,9 @@ async def handle_broadcast_cmd(message: Message, state: FSMContext) -> None:
 async def handle_broadcast_callback(callback: CallbackQuery, state: FSMContext) -> None:
     """Батырма арқылы хабарлама таратуды бастау."""
     if not is_admin(callback.from_user.id):
-        await callback.answer(texts.ONLY_ADMINS, show_alert=True)
+        await safe_callback_answer(callback, texts.ONLY_ADMINS, show_alert=True)
         return
-    await callback.answer()
+    await safe_callback_answer(callback)
     await state.set_state(AdminBroadcastStates.waiting_for_message)
     if callback.message:
         await callback.message.answer(
@@ -309,6 +318,15 @@ async def process_broadcast_message(message: Message, state: FSMContext, bot: Bo
         try:
             await message.copy_to(chat_id=uid)
             success += 1
+            await asyncio.sleep(0.05)
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+            try:
+                await message.copy_to(chat_id=uid)
+                success += 1
+            except Exception as e2:
+                logger.warning(f"Пайдаланушыға ({uid}) қайта жіберілмеді: {e2}")
+                failed += 1
         except TelegramAPIError as e:
             logger.warning(f"Пайдаланушыға ({uid}) хабар жіберілмеді: {e}")
             failed += 1

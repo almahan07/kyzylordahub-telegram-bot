@@ -20,7 +20,7 @@ if sys.platform == "win32":
         pass
 
 # Render қызметінің сілтемесі
-DEFAULT_URL = "https://kyzylordahub-telegram-bot-1.onrender.com/health"
+DEFAULT_URL = "https://kyzylordahub-telegram-bot-9njq.onrender.com/health"
 TARGET_URL = os.getenv("RENDER_URL", DEFAULT_URL)
 
 # Пинг аралығы (секундпен) - 5 минут = 300 секунд

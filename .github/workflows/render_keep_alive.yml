@@ -18,7 +18,7 @@ jobs:
           echo "=========================================================="
           echo "🚀 Kyzylorda Hub Telegram Bot: Render Keep-Alive басталуда"
           echo "=========================================================="
-          TARGET_URL="https://kyzylordahub-telegram-bot-1.onrender.com/health"
+          TARGET_URL="https://kyzylordahub-telegram-bot-9njq.onrender.com/health"
           echo "Нысана URL: $TARGET_URL"
           
           # Render ұйықтап қалса да ояту үшін 3 рет сұраныс жіберу

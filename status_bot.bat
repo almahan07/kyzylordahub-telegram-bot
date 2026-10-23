@@ -1,0 +1,7 @@
+@echo off
+chcp 65001 > nul
+title Kyzylorda Hub Bot Status
+cd /d "%~dp0"
+venv\Scripts\python.exe check_status.py
+echo.
+pause

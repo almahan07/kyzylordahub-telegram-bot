@@ -1,3 +1,4 @@
+import html
 import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
@@ -14,6 +15,14 @@ logger = logging.getLogger(__name__)
 router = Router(name="user_router")
 
 
+async def safe_callback_answer(callback: CallbackQuery, *args, **kwargs) -> None:
+    """Ескірген callback update болса қате шығармай үнсіз өткізіп жіберу."""
+    try:
+        await callback.answer(*args, **kwargs)
+    except TelegramAPIError:
+        pass
+
+
 @router.message(CommandStart())
 async def handle_start(message: Message) -> None:
     """
@@ -23,7 +32,8 @@ async def handle_start(message: Message) -> None:
     және басқа курстарға да промокод алуды ұсынады.
     """
     user_id = message.from_user.id
-    first_name = message.from_user.first_name or "Құрметті пайдаланушы"
+    raw_first_name = message.from_user.first_name or "Құрметті пайдаланушы"
+    first_name = html.escape(raw_first_name)
 
     try:
         claimed_courses = await db.get_user_claimed_courses(user_id)
@@ -71,7 +81,7 @@ async def handle_select_course(callback: CallbackQuery) -> None:
     Егер дәл осы курсқа бұрын алған болса — оның промокодын көрсетеді.
     Егер әлі алмаған болса — Instagram шартын көрсетеді.
     """
-    await callback.answer()
+    await safe_callback_answer(callback)
     user_id = callback.from_user.id
     course_key = callback.data.split(":", 1)[1]
     course_title = get_course_title(course_key)
@@ -112,7 +122,7 @@ async def handle_select_course(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "back_to_courses")
 async def handle_back_to_courses(callback: CallbackQuery) -> None:
     """Курстар тізіміне қайта оралу (қайта таңдау немесе басқа курс алу)."""
-    await callback.answer()
+    await safe_callback_answer(callback)
     user_id = callback.from_user.id
     claimed_courses = await db.get_user_claimed_courses(user_id)
     claimed_keys = [c["course"] for c in claimed_courses]
@@ -131,7 +141,7 @@ async def handle_confirm_sub(callback: CallbackQuery) -> None:
     'Тіркелдім' батырмасын басқанда:
     Таңдалған курсқа промокод беру.
     """
-    await callback.answer()
+    await safe_callback_answer(callback)
     user_id = callback.from_user.id
     username = callback.from_user.username
     course_key = callback.data.split(":", 1)[1]
@@ -186,10 +196,11 @@ async def handle_confirm_sub(callback: CallbackQuery) -> None:
                 await callback.message.edit_text(texts.OUT_OF_PROMOCODES, parse_mode="HTML")
 
             # Барлық админдерге дабыл жіберу
+            safe_username = html.escape(username) if username else "көрсетілмеген"
             alert_text = texts.ADMIN_ALERT_OUT_OF_PROMOCODES.format(
                 course_title=course_title,
                 course_key=course_key,
-                username=username or "көрсетілмеген",
+                username=safe_username,
                 user_id=user_id,
             )
             for admin_id in ADMIN_IDS:

@@ -33,7 +33,7 @@ DB_PATH = BASE_DIR / DB_NAME
 # Render сыртқы сілтемесі (24/7 ұйықтамауы үшін)
 RENDER_EXTERNAL_URL = os.getenv(
     "RENDER_EXTERNAL_URL",
-    "https://kyzylordahub-telegram-bot-1.onrender.com"
+    "https://kyzylordahub-telegram-bot-9njq.onrender.com"
 )
 
 # =========================================================================

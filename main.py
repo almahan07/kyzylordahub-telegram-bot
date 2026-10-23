@@ -11,6 +11,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -20,13 +21,19 @@ from config import BOT_TOKEN, ADMIN_IDS, RENDER_EXTERNAL_URL
 import database as db
 from handlers import main_router
 
-# Логирование баптауы
+BASE_DIR = Path(__file__).resolve().parent
+
+# Логирование баптауы (файлға және мүмкін болса консольге жазу)
+log_handlers: list[logging.Handler] = [
+    logging.FileHandler(BASE_DIR / "bot.log", encoding="utf-8")
+]
+if sys.stdout is not None:
+    log_handlers.append(logging.StreamHandler(sys.stdout))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=log_handlers,
 )
 logger = logging.getLogger("kyzylordahub_bot")
 
@@ -45,6 +52,8 @@ async def setup_bot_commands(bot: Bot) -> None:
 # UptimeRobot осы сілтемені пингтеп, боттың 24/7 ұйықтамауын қамтамасыз етеді
 # =========================================================================
 
+import json
+
 async def handle_health_check(request: web.Request) -> web.Response:
     """Веб-сервердің басты парақшасы."""
     return web.json_response({
@@ -52,22 +61,30 @@ async def handle_health_check(request: web.Request) -> web.Response:
         "service": "Kyzylorda Hub Telegram Bot",
         "bot": "@KYZYLORDAHUB_BOT",
         "message": "Бот белсенді жұмыс істеп тұр! 🚀"
-    })
+    }, dumps=lambda obj: json.dumps(obj, ensure_ascii=False))
 
 
-async def start_web_server() -> web.AppRunner:
+async def start_web_server() -> web.AppRunner | None:
     """Жеңіл веб-серверді белгіленген портта іске қосу."""
+    port = int(os.getenv("PORT", "8080"))
     app = web.Application()
     app.router.add_get("/", handle_health_check)
     app.router.add_get("/health", handle_health_check)
 
-    port = int(os.getenv("PORT", "8080"))
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    logger.info(f"Health-check веб-сервері 0.0.0.0:{port} портында қосылды.")
-    return runner
+    try:
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        logger.info(f"Health-check веб-сервері 0.0.0.0:{port} портында қосылды.")
+        return runner
+    except Exception as e:
+        logger.warning(f"Веб-серверді 0.0.0.0:{port} портында іске қосу мүмкін болмады (ескерту): {e}")
+        try:
+            await runner.cleanup()
+        except Exception:
+            pass
+        return None
 
 
 async def keep_alive_ping_task(url: str, interval: int = 300) -> None:
@@ -138,7 +155,7 @@ async def main() -> None:
     bot_info = await bot.get_me()
     logger.info(f"Бот сәтті қосылды: @{bot_info.username} (ID: {bot_info.id})")
 
-    # Ескі жаңартуларды тазалап, поллингті бастау
+    # Вебхукты өшіріп, ескірген жаңартуларды тазалап поллингті бастау
     await bot.delete_webhook(drop_pending_updates=True)
     try:
         await dp.start_polling(bot)
@@ -146,7 +163,8 @@ async def main() -> None:
         if ping_task and not ping_task.done():
             ping_task.cancel()
         await bot.session.close()
-        await web_runner.cleanup()
+        if web_runner:
+            await web_runner.cleanup()
         logger.info("Бот жұмысын аяқтады.")
 
 
